@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moral Compass</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Lora', serif;
+            touch-action: manipulation;
+        }
+        .compass {
+            width: 300px;
+            height: 300px;
+            position: relative;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2), 0 0 15px rgba(255,255,255,0.1) inset;
+            cursor: pointer; /* Add pointer cursor for iOS permission tap */
+        }
+        .compass-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;  /* Ensures the image covers the space */
+            z-index: 1; /* Sends the image behind the compass wheel */
+            scale: 130%;
+        }
+        .compass-wheel {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            position: relative;
+            background-color: #111;
+            /* Changed background image to cracked desert ground for "chaos" theme */
+            background-image: url('https://www.jordanbpeterson.com/wp-content/uploads/2023/06/Maps-Of-Meaning-Logo.png');
+            background-size: cover;
+            background-position: center;
+            border: 6px solid #4a5568;
+            overflow: hidden;
+        }
+        .compass-label {
+            position: absolute;
+            font-size: 2.2rem;
+            font-weight: 600;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 4px 10px;
+            border-radius: 6px;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+        .label-good {
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .label-evil {
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%) rotate(180deg); /* Added rotation */
+        }
+        .label-order {
+            top: 50%;
+            right: -10px; /* Changed from 12px */
+            transform: translateY(-50%) rotate(90deg); /* Added rotation */
+        }
+        .label-chaos {
+            top: 50%;
+            left: -10px; /* Changed from 12px */
+            transform: translateY(-50%) rotate(-90deg); /* Added rotation */
+        }
+        .arrow-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 20;
+            transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        /* New: Lobster image for the arrow */
+        .lobster-arrow {
+            position: absolute;
+            width: 70px; /* Adjust size as needed */
+            height: 160px; /* Adjust size as needed */
+            background-image: url('https://cdn.creazilla.com/cliparts/18438/lobster-clipart-xl.png'); /* Example lobster image */
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center bottom; /* Position to point upwards */
+            top: 34%;
+            left: 58%;
+            transform: translate(-50%, -50%) rotate(30deg); /* Initial rotation for pointing up */
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.4));
+        }
+        /* Center pivot point for the arrow */
+        .arrow-pivot {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border: 4px solid #e53e3e;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 21;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200 flex items-center justify-center min-h-screen p-4">
+
+    <div class="flex flex-col items-center text-center space-y-8 w-full max-w-md">
+        <h1 class="text-4xl font-bold text-white">Moral Compass</h1>
+        <br>
+        <br>
+        <!-- Compass Container --><div class="compass">
+            <img class="compass-background" src="https://www.i2clipart.com/cliparts/4/1/9/9/clipart-ouroboros-512x512-4199.png" alt="Compass Background">
+            <div class="compass-wheel">
+                <!-- Labels --><div class="compass-label label-good">Good</div>
+                <div class="compass-label label-evil">Evil</div>
+                <div class="compass-label label-order">Order</div>
+                <div class="compass-label label-chaos">Chaos</div>
+            </div>
+            
+            <!-- Arrow --><div id="arrowContainer" class="arrow-container">
+                <div class="lobster-arrow"></div> <!-- Replaced arrow-shape with lobster-arrow --></div>
+            
+            <!-- Pivot --><div class="arrow-pivot"></div>
+        </div>
+        <br>
+        <br>
+        <!-- Controls --><div class="w-full">
+            <!-- <button id="startButton" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105" style="display: none;">
+                Start Compass
+            </button> -->
+            <button id="calibrateButton" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105" style="display: none;">
+                Calibrate
+            </button>
+        </div>
+        
+        <!-- Message/Error Area --><p id="messageText" class="text-yellow-300 text-sm" style="display: none;"></p>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const arrowContainer = document.getElementById('arrowContainer');
+            const calibrateButton = document.getElementById('calibrateButton');
+            const messageText = document.getElementById('messageText');
+            const lobsterArrow = document.querySelector('.lobster-arrow');
+            
+            // Define startButton here. It will be null, but that's okay.
+            const startButton = document.getElementById('startButton'); 
+
+            let isCalibrating = false;
+            let calibrationAngle = 0;
+            let calibrationSpeed = 1.0;
+
+            // --- Orientation Handler ---
+            function handleOrientation(event) {
+                if (isCalibrating) return;
+
+                let heading = null;
+
+                // Per user request, only use webkitCompassHeading
+                if ('webkitCompassHeading' in event && event.webkitCompassHeading !== null) {
+                    heading = event.webkitCompassHeading;
+                } else {
+                    // User requested iOS WebKit only
+                    const msgEl = document.getElementById('messageText');
+                    if (msgEl && !msgEl.textContent.includes('WebKit')) {
+                        showMessage('Compass unsupported. This app requires iOS WebKit.', 'error');
+                    }
+                    // Stop listening to save resources if not supported
+                    window.removeEventListener('deviceorientation', handleOrientation);
+                    return;
+                }
+                
+                // Logic for a rotating pointer:
+                // If device points East (heading=90), North is to the left. Rotation = -90.
+                const rotation = -heading; 
+                arrowContainer.style.transform = `rotate(${rotation}deg)`;
+            }
+
+            // --- Calibrate Button Logic ---
+            function startCalibrationSpin() {
+                isCalibrating = true;
+                
+                function spin() {
+                    calibrationSpeed += 0.01;
+                    calibrationAngle = (calibrationAngle + calibrationSpeed);
+                    
+                    arrowContainer.style.transition = 'none';
+                    arrowContainer.style.transform = `rotate(${calibrationAngle}deg)`;
+                    
+                    requestAnimationFrame(spin);
+                }
+                
+                spin();
+            }
+
+            calibrateButton.addEventListener('click', startCalibrationSpin);
+
+            // --- Start Logic ---
+            function initCompass() {
+                if (!window.isSecureContext) {
+                    showMessage('Sensor access requires a secure connection (HTTPS).', 'error');
+                    return;
+                }
+                
+                if (typeof DeviceMotionEvent.requestPermission === 'function') {
+                    // This is iOS. User wants to skip 'start' button.
+                    // Make the compass itself clickable to grant permission.
+                    const compass = document.querySelector('.compass');
+                    // showMessage('Tap the compass to grant sensor permissions (required on iOS).', 'info');
+                    
+                    compass.addEventListener('click', function requestPerms() {
+                        DeviceMotionEvent.requestPermission()
+                            .then(permissionState => {
+                                if (permissionState === 'granted') {
+                                    addOrientationListener();
+                                    compass.removeEventListener('click', requestPerms); // Only ask once
+                                    showMessage('', 'info'); // Clear message
+                                } else {
+                                    showMessage('Permission denied. Compass cannot function.', 'error');
+                                }
+                            })
+                            .catch(error => {
+                                showMessage(`Error requesting permission: ${error.message}`, 'error');
+                            });
+                    });
+                    
+                    // Still show calibrate button as requested, even if compass isn't active yet
+                    calibrateButton.style.display = 'block';
+
+                } else {
+                    // Not iOS - just add the listener and show calibrate
+                    addOrientationListener();
+                }
+            }
+            
+            function addOrientationListener() {
+                if (window.DeviceMotionEvent) {
+                    window.addEventListener('deviceorientation', handleOrientation);
+                    
+                    if (startButton) {
+                        startButton.style.display = 'none';
+                    }
+                    calibrateButton.style.display = 'block';
+                    // Do not clear message, in case handleOrientation needs to set one.
+                    // showMessage('', 'info');
+                } else {
+                    showMessage('Device orientation is not supported by your browser.', 'error');
+                }
+            }
+            
+            function showMessage(message, type = 'info') {
+                messageText.textContent = message;
+                messageText.style.display = message ? 'block' : 'none';
+                
+                if (type === 'error') {
+                    messageText.className = 'text-red-400 text-sm';
+                } else {
+                    messageText.className = 'text-yellow-300 text-sm';
+                }
+            }
+
+            initCompass();
+        });
+    </script>
+</body>
+</html>
