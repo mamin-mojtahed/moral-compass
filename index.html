@@ -21,7 +21,6 @@
             align-items: center;
             justify-content: center;
             box-shadow: 0 10px 20px rgba(0,0,0,0.2), 0 0 15px rgba(255,255,255,0.1) inset;
-            cursor: pointer; /* Add pointer cursor for iOS permission tap */
         }
         .compass-background {
             position: absolute;
@@ -160,6 +159,7 @@
             const startButton = document.getElementById('startButton'); 
 
             let isCalibrating = false;
+            let isFollowingCompass = false;
             let calibrationAngle = 0;
             let calibrationSpeed = 1.0;
 
@@ -191,6 +191,7 @@
 
             // --- Calibrate Button Logic ---
             function startCalibrationSpin() {
+                if (isCalibrating) return;
                 isCalibrating = true;
                 
                 function spin() {
@@ -206,7 +207,41 @@
                 spin();
             }
 
-            calibrateButton.addEventListener('click', startCalibrationSpin);
+            function handleCalibrateClick() {
+                if (!isFollowingCompass) {
+                    // First click triggers following the device's compass (requesting permission if needed)
+                    const requestPermission =
+                        (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function')
+                            ? DeviceOrientationEvent.requestPermission.bind(DeviceOrientationEvent)
+                            : (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function')
+                                ? DeviceMotionEvent.requestPermission.bind(DeviceMotionEvent)
+                                : null;
+
+                    if (requestPermission) {
+                        requestPermission()
+                            .then(permissionState => {
+                                if (permissionState === 'granted') {
+                                    isFollowingCompass = true;
+                                    addOrientationListener();
+                                    showMessage('', 'info');
+                                } else {
+                                    showMessage('Permission denied. Compass cannot function.', 'error');
+                                }
+                            })
+                            .catch(error => {
+                                showMessage(`Error requesting permission: ${error.message}`, 'error');
+                            });
+                    } else {
+                        isFollowingCompass = true;
+                        addOrientationListener();
+                    }
+                } else {
+                    // Later clicks switch to the calibration spin animation
+                    startCalibrationSpin();
+                }
+            }
+
+            calibrateButton.addEventListener('click', handleCalibrateClick);
 
             // --- Start Logic ---
             function initCompass() {
@@ -215,35 +250,8 @@
                     return;
                 }
                 
-                if (typeof DeviceMotionEvent.requestPermission === 'function') {
-                    // This is iOS. User wants to skip 'start' button.
-                    // Make the compass itself clickable to grant permission.
-                    const compass = document.querySelector('.compass');
-                    // showMessage('Tap the compass to grant sensor permissions (required on iOS).', 'info');
-                    
-                    compass.addEventListener('click', function requestPerms() {
-                        DeviceMotionEvent.requestPermission()
-                            .then(permissionState => {
-                                if (permissionState === 'granted') {
-                                    addOrientationListener();
-                                    compass.removeEventListener('click', requestPerms); // Only ask once
-                                    showMessage('', 'info'); // Clear message
-                                } else {
-                                    showMessage('Permission denied. Compass cannot function.', 'error');
-                                }
-                            })
-                            .catch(error => {
-                                showMessage(`Error requesting permission: ${error.message}`, 'error');
-                            });
-                    });
-                    
-                    // Still show calibrate button as requested, even if compass isn't active yet
-                    calibrateButton.style.display = 'block';
-
-                } else {
-                    // Not iOS - just add the listener and show calibrate
-                    addOrientationListener();
-                }
+                // Show calibrate button
+                calibrateButton.style.display = 'block';
             }
             
             function addOrientationListener() {
